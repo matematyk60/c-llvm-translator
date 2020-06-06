@@ -1,27 +1,23 @@
-import org.antlr.v4.runtime.ANTLRFileStream;
+import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStream;
-
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Paths;
+import org.antlr.v4.runtime.tree.*;
 
 public class Main {
 
-    public static void main(String[] args) throws URISyntaxException, IOException {
+    public static void main(String[] args) {
+            String exampleCode = "int i = 5;";
+            CLexer lexer = new CLexer(new ANTLRInputStream(exampleCode));
+            TokenStream commonTokenStream = new CommonTokenStream(lexer);
+            SimpleCParser parser = new SimpleCParser(commonTokenStream);
 
-        String path = Paths.get(Main.class.getClassLoader().getResource("example.c").toURI()).toString();
-        ANTLRFileStream antlrFileStream = new ANTLRFileStream(path);
-        CLexer lexer = new CLexer(antlrFileStream);
+            ParseTree tree = parser.start();
+            System.out.println(tree.toStringTree());
+            System.out.println("BREAK");
 
-        TokenStream tokenStream = new CommonTokenStream(lexer);
-        CParser parser = new CParser(tokenStream);
+            AVisitor visitor = new AVisitor();
+            System.out.println(visitor.visit(tree));
 
-        CParser.CompilationUnitContext compilationUnit = parser.compilationUnit();
-
-//        AVisitor visitor = new AVisitor();
-
-        ContextExplorer.explore(compilationUnit, 0);
 
     }
 }
