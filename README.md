@@ -25,7 +25,7 @@ Stwierdziliśmy, że idealnym rozwiązaniem do naszych potrzeb jest ANTLR – ge
 
 ANTLRem możemy wygenerować dla naszej gramatyki lekser i parser w oczekiwanym języku, następnie otrzymamy reprezentację za pomocą drzewa składniowego (AST). Ważna uwaga o której musimy pamiętać, aby móc skorzystać z ANTLR – wprowadzona przez nas gramatyka nie może być lewostronnie rekurencyjna.
 
-![](https://lh6.googleusercontent.com/SkGJW9V4b91cac9_m8esC0uB_1tO_OozxFJIfPXZ5VkLhx17zw5B9CKfImAhVqlyPWvNb41wIAROoZKZu0Q8N62bLp23clLsDLpixwyvVyyAAPCOwaqoUaNEeBZ1TVhOpVHbbTyO)
+[https://lh6.googleusercontent.com/SkGJW9V4b91cac9_m8esC0uB_1tO_OozxFJIfPXZ5VkLhx17zw5B9CKfImAhVqlyPWvNb41wIAROoZKZu0Q8N62bLp23clLsDLpixwyvVyyAAPCOwaqoUaNEeBZ1TVhOpVHbbTyO](https://lh6.googleusercontent.com/SkGJW9V4b91cac9_m8esC0uB_1tO_OozxFJIfPXZ5VkLhx17zw5B9CKfImAhVqlyPWvNb41wIAROoZKZu0Q8N62bLp23clLsDLpixwyvVyyAAPCOwaqoUaNEeBZ1TVhOpVHbbTyO)
 
 Porównanie dostępnych narzędzi
 
@@ -249,7 +249,7 @@ class ValueCalculator extends CalculatorBaseVisitor<Double> {
     public Double visitFuncAcos(CalculatorParser.FuncAcosContext ctx) {
         return Math.acos(visit(ctx.plusOrMinus()));
     }
-
+xxxx5x5
     public Double visitFuncLn(CalculatorParser.FuncLnContext ctx) {
         return Math.log(visit(ctx.plusOrMinus()));
     }
@@ -324,3 +324,129 @@ Result is: 82422.42980044847
 ## Translator C na LLVM
 
 Podobne podejście stosujemy w naszym translatorze. Na podstawie napisanej przez nas gramatyki języka C, używając ANTLR4, generujemy lexer, parser oraz visitor. Za ich pomocą budujemy drzewo dla wprowadzonego zdania w języku C, a następnie przechodzimy przez nie przy użyciu visitora.
+
+## Visitor vs Listener
+
+Visitor jest bardziej elastyczny. Metody Listenera są wołane przez obiekt przechodzący po drzewie, zapewniony przez ANTRL. Natomiast Visitor sam przechodzi przez drzewo. W efekcie przy Visitorze możemy decydować o kierunku, w którym przechodzimy po drzewie lub przechodzić przez konkretne węzły więcej niż raz. W Listenerze reagujemy jedynie na fakt odwiedzenia węzła przez gotowy mechanizm. Listener działa na zasadzie callbacków wywoływanych po odwiedzenia węzła. Oba wzorce korzystają z różnych mechanizmów zarządzania pamięcią. Jeśli nasz input może być potencjalnie bezgraniczny, wtedy należy zastosować Listener, jako że przy Visitorze mogą pojawić się problemy z zarządzaniem pamięcią. Visitor działa lepiej jeśli potrzebujemy wartości zwracanych przez aplikację, ponieważ możemy skorzystać z wbudowanego mechanizmu zwracania wartości Javy.
+
+## Przykładowe elementy gramatyki języka C
+
+## przypisanie wartości do zmiennej
+
+```jsx
+assignment : IDENTIFIER ASSIGN literal | IDENTIFIER ASSIGN expression;
+```
+
+Mamy tutaj dwie produkcje. Obydwie zaczynają się od dwóch symboli terminalnych `IDENTIFIER` i `ASSIGN`.  Tak zdefiniowane są symbole terminalne w gramatyce ANTLR4:
+
+```jsx
+IDENTIFIER : LETTER LETTER_OR_DIGIT*;
+fragment LETTER : [a-zA-Z_];
+fragment LETTER_OR_DIGIT : [a-zA-Z0-9_];
+
+ASSIGN : '=';
+```
+
+Jedna produkcja pozwala przypisać wartość do zmiennej za pomocą literału wartości (np. `8`, `8.4`, `true`, `"VALUE"`), a druga pozwala używać operatorów do modyfikacji wartości (np. `89 % 10`). 
+
+```jsx
+literal : INTEGER_LITERAL | FLOATING_POINT_LITERAL | STRING_LITERAL | BOOL_LITERAL ;
+
+INT_LITERAL: '-'? NUMBER;
+FLOAT_LITERAL: '-'? NUMBER FloatSep NUMBER?;
+STRING_LITERAL: '"' ~('\n' | '\r' | '"')* '"';
+BOOL_LITERAL: 'true' | 'false';
+
+INTEGER_LITERAL : MINUS? DECIMAL_NUMERAL ;
+FLOATING_POINT_LITERAL : MINUS? DECIMAL_NUMERAL FLOATING_POINT_SEPARATOR DECIMAL_NUMERAL? ;
+NUMBER_LITERAL :INTEGER_LITERAL | FLOATING_POINT_LITERAL ;
+STRING_LITERAL : QUOTE ~('\n' | '\r' | '"')* QUOTE ;
+BOOL_LITERAL :  'true' | 'false' ;
+
+expression
+    : primary_expression math_operator primary_expression ;
+```
+
+Tych produkcji używamy do generowania drzewa parsowania i przechodzimy po nim używając klasy `LlvmTranslatorVisitor`, która na podstawie wygenerowanych produkcji i tokenów zapisuje do osobnego pliku odpowiadający kod pośredni LLVM. Przykład:
+
+kod c:
+
+```c
+c = 30;
+```
+
+kod LLVM IR:
+
+```c
+%c=alloca i32
+%r1=add i32 30, 0
+store i32 %r1, i32* %c
+```
+
+## if statement
+
+```jsx
+ifStatement: IF '(' booleanExpression ')' Newline? '{' Newline statement* '}' Newline (ELSE '{' statement* '}' )?;
+```
+
+Rdzeniem tej reguły naszej gramatyki jest symbol nieterminalny `booleanExpression`, który rozwija się do kilku sposobów na otrzymanie wartości `true` lub `false`.
+
+```jsx
+booleanExpression
+: expression comparison expression
+| expression comparison primaryExpression
+| primaryExpression comparison primaryExpression
+| booleanExpression logicOperator booleanExpression
+| primaryExpression;
+```
+
+Po przejściu wygenerowanego drzewa dla danego if statement zostaje zapisany odpowiedni kod pośredni LLVM;
+
+```jsx
+%r1=load i32* %c
+%r2=add i32 15, 0
+r3=icmp sgl i32 %r1 %r2
+br i1 %r3, label %true3, label %false3
+true3:
+	%c=alloca i32
+	%r4=add i32 30, 0
+	store i32  %r4, i32* %c
+```
+
+## definicja funkcji
+
+```jsx
+function_statement: type IDENTIFIER '(' (function_argument ','?)+ ')' '{' (statement+)? return_statement?'}' | type IDENTIFIER '('')' '{' (statement+)? return_statement? '}';
+function_argument: type IDENTIFIER table?;
+return_statement: 'return ' (variable_declaration | IDENTIFIER) ';';
+```
+
+kod C:
+
+```c
+int g(int a, int b[10]) {
+    a = 10;
+    return a;
+}
+```
+
+wygenerowany kod pośredni LLVM:
+
+```jsx
+define i32 @g(i32 %arg_a, i32* %arg_b) {
+	%a= alloca i32
+	store i32 %arg_a i32* %a
+	%b= alloca i32*
+	store i32* %arg_b i32** %b
+	%a=alloca i32
+	%r1=add i32 10, 0
+	store i32  %r1, i32* %a
+	ret i32 a
+}
+```
+
+# Podsumowanie
+
+W podsumowaniu należy podkreślić trafność doboru narzędzia, jakim jest `ANTLR4`. W przystępny sposób i przy umiarkowanym nakładzie pracy umożliwia wykorzystanie wiedzy o językach formalnych i kompilatorach do stworzenia dowolnego translatora. 
+
+Mimo tego, że projekt udało się zrealizować w ramach jednego semestru przedmiotu Teoria kompilacji i kompilatory w kilka miesięcy, to w naszym odczuciu stworzenie gramatyki, która bierze pod uwagę wszystkie elementy języka C nie jest możliwa do stworzenia w tak krótkim czasie. Ponadto, według wykonanej analizy literatury i internetu okazuje się, że gramatyka w pełni opisująca język C nie jest gramatyką klasy 2 w hierarchi Chomsky'iego (bezkontekstowa), tylko typu pierwszego (kontekstowa). Link do artykułu: [https://en.wikipedia.org/wiki/Lexer_hack](https://en.wikipedia.org/wiki/Lexer_hack)

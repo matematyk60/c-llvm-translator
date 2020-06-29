@@ -1,53 +1,34 @@
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.TokenStream;
+
 import org.antlr.v4.runtime.tree.*;
 
-import java.util.HashMap;
-import java.util.Scanner;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+
 
 public class Main {
+    public static void main(String[] args) throws IOException {
+        File inputFile = new File("input.txt");
+        String input = readFile(inputFile);
 
-    //    public static void main(String[] args) {
-//            String exampleCode = "int i = 5;";
-//            CLexer lexer = new CLexer(new ANTLRInputStream(exampleCode));
-//            TokenStream commonTokenStream = new CommonTokenStream(lexer);
-//            SimpleCParser parser = new SimpleCParser(commonTokenStream);
-//
-//            ParseTree tree = parser.start();
-//            System.out.println(tree.toStringTree());
-//            System.out.println("BREAK");
-//
-//            AVisitor visitor = new AVisitor();
-//            System.out.println(visitor.visit(tree));
-//
-//
-//    }
-    public static void main(String[] args) {
-        Scanner in = new Scanner(System.in);
+        SimpleCLexer lexer = new SimpleCLexer(new ANTLRInputStream(input));
+        CommonTokenStream commonTokenStream = new CommonTokenStream(lexer);
+        SimpleCParser parser = new SimpleCParser(commonTokenStream);
 
-        System.out.println("Write function literal...");
-        String functionLiteral = in.nextLine();
-        CalculatorLexer lexer = new CalculatorLexer(new ANTLRInputStream(functionLiteral));
-        CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-        CalculatorParser parser = new CalculatorParser(tokenStream);
+        ParseTree tree = parser.start();
+        System.out.println(tree.toStringTree());
 
-        CalculatorParser.StartContext parseTree = parser.start();
+        LlvmTranslatorVisitor llvmTranslatorVisitor = new LlvmTranslatorVisitor();
+        String g = llvmTranslatorVisitor.visit(tree);
+        System.out.println(g);
+    }
 
-        VariableFinder variableFinder = new VariableFinder();
-        variableFinder.visit(parseTree);
-
-        HashMap<String, Double> variableMap = new HashMap<>();
-
-        variableFinder.getVarSet().forEach(variable -> {
-            System.out.println("Value for [" + variable + "] variable?");
-            Double value = Double.valueOf((in.nextLine()));
-            variableMap.put(variable, value);
-        });
-
-        ValueCalculator valueCalculator = new ValueCalculator(variableMap);
-        Double result = valueCalculator.visit(parseTree);
-
-        System.out.println("Result is: " + result);
+    private static String readFile(File file) throws IOException {
+        byte[] encoded = Files.readAllBytes(file.toPath());
+        return new String(encoded, StandardCharsets.UTF_8);
     }
 }

@@ -1,0 +1,24 @@
+define i32 @g(i32 %arg_a, i32* %arg_b) {
+	%a= alloca i32
+	store i32 %arg_a i32* %a
+	%b= alloca i32*
+	store i32* %arg_b i32** %b
+	%a=alloca i32
+	%r1=add i32 10, 0
+	store i32  %r1, i32* %a
+	ret i32 a
+} 
+%c=alloca i32
+%r2=add i32 20, 0
+store i32  %r2, i32* %c
+define void @f() {
+	ret void
+} 
+%r3=load i32* %c
+%r4=add i32 15, 0
+r5=icmp sgl i32 %r3 %r4
+br i1 %r5, label %true5, label %false5
+true5:
+	%c=alloca i32
+	%r6=add i32 30, 0
+	store i32  %r6, i32* %c

@@ -1,0 +1,12 @@
+int g(int a, int b[10]) {
+    a = 10;
+    return a;
+}
+
+int c = 20;
+
+void f(){}
+
+if(c<=15){
+    c = 30;
+}
